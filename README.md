@@ -50,7 +50,7 @@ npm install
 sudo cp service/apcupsd-web.service /etc/systemd/system/
 ```
 
-> ⚠️ Edit `/etc/systemd/system/apcupsd-web.service` if the Node.js path differs (default uses `/usr/bin/env node`).
+> ⚠️ Edit `/etc/systemd/system/apcupsd-web.service` set the path to your folder and if the Node.js path differs (default uses `/usr/bin/env node`).
 
 4. Reload systemd and enable the service:
 
