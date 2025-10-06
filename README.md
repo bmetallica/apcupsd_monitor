@@ -5,6 +5,9 @@
 
 A modern web interface for monitoring your APC UPS using **apcupsd**. It displays real-time status, battery, load, and voltage charts, as well as event logs.
 
+![Screenshot](https://raw.githubusercontent.com/bmetallica/apcupsd_monitor/refs/heads/main/apc.jpg)
+
+
 ## Features
 
 - Real-time UPS status and event log
