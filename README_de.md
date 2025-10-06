@@ -29,7 +29,23 @@ Ein modernes Webinterface zur Überwachung deiner APC-USV mit **apcupsd**. Es we
 * npm
 * `apcupsd` installiert und konfiguriert
 
-## Installation
+## Installation Docker-Compose
+
+### Requirements for Docker-Version
+- docker mit compose plugin installieren
+- "NETSERVER on" und "NISIP 0.0.0.0" in der /etc/apcupsd/apcupsd.conf setzen
+- Die "APC_HOST" Variable in der docker-compose.yml setzen
+  
+```bash
+mkdir /opt/apcupsdif
+cd /opt/apcupsdif
+wget https://github.com/bmetallica/apcupsd_monitor/blob/main/docker-compose.yml
+
+docker compose up -d
+
+```
+
+## Installation manual
 
 1. Repository klonen:
 
