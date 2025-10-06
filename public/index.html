@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>USV Monitor – apcupsd Webinterface</title>
+
+  <!-- Tailwind + Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      background-color: #f8fafc;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    canvas {
+      height: 160px !important;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen">
+  <!-- Header -->
+  <header class="bg-slate-800 text-white p-4 text-2xl font-semibold text-center shadow">
+    ⚡ USV Monitor (apcupsd)
+  </header>
+
+  <main class="flex flex-grow overflow-hidden">
+    <!-- Seitenleiste -->
+    <aside class="w-[15%] min-w-[220px] bg-slate-100 p-4 border-r overflow-y-auto no-scrollbar">
+      <h2 class="text-lg font-semibold mb-3 text-slate-800">USV-Informationen</h2>
+      <table id="infoTable" class="w-full text-sm text-left">
+        <tbody></tbody>
+      </table>
+    </aside>
+
+    <!-- Hauptbereich -->
+    <section class="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6">
+
+      <!-- Balkendiagramme -->
+      <div class="grid grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl shadow p-4 flex flex-col items-center">
+          <h3 class="text-md font-semibold mb-2 text-slate-700">Erwartete Laufzeit (Minuten)</h3>
+          <div class="w-full"><canvas id="runtimeChart"></canvas></div>
+          <div id="runtimeValue" class="mt-2 text-slate-700 font-semibold">0 Minuten</div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-4 flex flex-col items-center">
+          <h3 class="text-md font-semibold mb-2 text-slate-700">Batteriekapazität (%)</h3>
+          <div class="w-full"><canvas id="batteryChart"></canvas></div>
+          <div id="batteryValue" class="mt-2 text-slate-700 font-semibold">0 %</div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-4 flex flex-col items-center">
+          <h3 class="text-md font-semibold mb-2 text-slate-700">UPS Last (%)</h3>
+          <div class="w-full"><canvas id="loadChart"></canvas></div>
+          <div id="loadValue" class="mt-2 text-slate-700 font-semibold">0 %</div>
+        </div>
+      </div>
+
+      <!-- Linien-Diagramme -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl shadow p-4">
+          <h3 class="text-md font-semibold mb-2 text-slate-700">Spannungsverlauf (letzte 24h) jede Minute</h3>
+          <div class="w-full h-60"><canvas id="voltageChart"></canvas></div>
+          <div id="voltageValues" class="mt-2 text-slate-700 font-semibold text-sm">
+            Eingang: 0 V | Ausgang: 0 V | Batterie: 0 V
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow p-4">
+          <h3 class="text-md font-semibold mb-2 text-slate-700">Temperaturverlauf (letzte 24h) jede Minute</h3>
+          <div class="w-full h-60"><canvas id="tempChart"></canvas></div>
+          <div id="tempValue" class="mt-2 text-slate-700 font-semibold text-sm">0 °C</div>
+        </div>
+      </div>
+
+      <!-- Eventlog -->
+      <div class="bg-white rounded-2xl shadow p-4 mb-6">
+        <h3 class="text-md font-semibold mb-3 text-slate-700">Echtzeit-Log</h3>
+        <pre id="logOutput" class="bg-slate-50 border border-slate-200 rounded-lg p-3 h-64 overflow-y-auto text-xs font-mono text-slate-700"></pre>
+      </div>
+    </section>
+  </main>
+
+<script>
+const barOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: { y: { beginAtZero: true, max: 100 } },
+  plugins: { legend: { display: false } },
+  animation: { duration: 200 }
+};
+
+const lineOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: { x: { display: true }, y: { beginAtZero: false } },
+  plugins: { legend: { position: "bottom" } }
+};
+
+// Balkendiagramme
+const runtimeChart = new Chart(document.getElementById("runtimeChart"), {
+  type: "bar",
+  data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#3b82f6" }] },
+  options: barOptions
+});
+const batteryChart = new Chart(document.getElementById("batteryChart"), {
+  type: "bar",
+  data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#22c55e" }] },
+  options: barOptions
+});
+const loadChart = new Chart(document.getElementById("loadChart"), {
+  type: "bar",
+  data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#f59e0b" }] },
+  options: barOptions
+});
+
+// Liniendiagramme
+const voltageChart = new Chart(document.getElementById("voltageChart"), {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [
+      { label: "Eingangsspannung (V)", data: [], borderColor: "#6366f1", tension: 0.2 },
+      { label: "Ausgangsspannung (V)", data: [], borderColor: "#22c55e", tension: 0.2 },
+      { label: "Batteriespannung (V)", data: [], borderColor: "#f59e0b", tension: 0.2 }
+    ]
+  },
+  options: lineOptions
+});
+const tempChart = new Chart(document.getElementById("tempChart"), {
+  type: "line",
+  data: { labels: [], datasets: [{ label: "Temperatur (°C)", data: [], borderColor: "#ef4444", tension: 0.2 }] },
+  options: lineOptions
+});
+
+// Daten abrufen & Diagramme aktualisieren
+async function updateData() {
+  try {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+
+    // Tabelle füllen
+    const tbody = document.querySelector("#infoTable tbody");
+    tbody.innerHTML = "";
+    for (const [key, value] of Object.entries(data)) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="py-1 pr-2 font-medium text-slate-800">${key}</td>
+                      <td class="py-1 text-slate-600">${value}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    // Balkenwerte aktualisieren
+    const runtime = parseFloat(data.TIMELEFT || 0);
+    const battery = parseFloat(data.BCHARGE || 0);
+    const load = parseFloat(data.LOADPCT || 0);
+
+    runtimeChart.data.datasets[0].data = [runtime];
+    batteryChart.data.datasets[0].data = [battery];
+    loadChart.data.datasets[0].data = [load];
+
+    runtimeChart.update();
+    batteryChart.update();
+    loadChart.update();
+
+    // Werte unterhalb der Balken
+    document.getElementById("runtimeValue").textContent = `${runtime} Minuten`;
+    document.getElementById("batteryValue").textContent = `${battery} %`;
+    document.getElementById("loadValue").textContent = `${load} %`;
+
+    // Verlaufsdaten vom Server holen
+    const histRes = await fetch("/api/history");
+    const history = await histRes.json();
+
+    const timestamps = history.map(h => {
+      const d = new Date(h.t);
+      return d.getHours().toString().padStart(2,'0') + ":" + d.getMinutes().toString().padStart(2,'0');
+    });
+    voltageChart.data.labels = timestamps;
+    tempChart.data.labels = timestamps;
+
+    voltageChart.data.datasets[0].data = history.map(h => h.LINEV);
+    voltageChart.data.datasets[1].data = history.map(h => h.OUTPUTV);
+    voltageChart.data.datasets[2].data = history.map(h => h.BATTV);
+    tempChart.data.datasets[0].data = history.map(h => h.ITEMP);
+
+    voltageChart.update();
+    tempChart.update();
+
+    // Werte unterhalb der Liniendiagramme
+    const lastVoltage = history[history.length - 1] || { LINEV: 0, OUTPUTV: 0, BATTV: 0 };
+    document.getElementById("voltageValues").textContent =
+      `Eingang: ${lastVoltage.LINEV} V | Ausgang: ${lastVoltage.OUTPUTV} V | Batterie: ${lastVoltage.BATTV} V`;
+
+    const lastTemp = history[history.length - 1] || { ITEMP: 0 };
+    document.getElementById("tempValue").textContent = `${lastTemp.ITEMP} °C`;
+
+    // Log
+    const log = document.getElementById("logOutput");
+    log.textContent = (data.LOG || "").split("\n").slice(-50).join("\n");
+
+  } catch (err) {
+    console.error("Fehler beim Abrufen der Daten:", err);
+  }
+}
+
+// Update alle 5 Sekunden
+updateData();
+setInterval(updateData, 5000);
+</script>
+</body>
+</html>

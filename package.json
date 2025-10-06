@@ -1,0 +1,13 @@
+{
+  "name": "apcupsd-web",
+  "version": "1.0.0",
+  "description": "Modernes Webinterface für apcupsd",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "child_process": "^1.0.2"
+  }
+}
