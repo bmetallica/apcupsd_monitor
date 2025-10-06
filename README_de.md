@@ -4,6 +4,8 @@
 
 Ein modernes Webinterface zur Überwachung deiner APC-USV mit **apcupsd**. Es werden Echtzeitstatus, Batteriewerte, Last, Spannungsdiagramme sowie Eventlogs angezeigt.
 
+![Screenshot](https://raw.githubusercontent.com/bmetallica/apcupsd_monitor/refs/heads/main/apc.jpg)
+
 ## Funktionen
 
 * Echtzeit-USV-Status und Eventlog
