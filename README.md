@@ -16,7 +16,7 @@ A modern web interface for monitoring your APC UPS using **apcupsd**. It display
   - Battery voltage, output voltage, input voltage
   - Temperature
 - Responsive design for desktop and mobile
-- CSV-based history storage for long-term charting
+- CSV-based history storage for long-term charting (24h)
 - Systemd service for automatic startup on Debian
 
 ## System Requirements
