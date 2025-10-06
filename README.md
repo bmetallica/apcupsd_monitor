@@ -29,7 +29,23 @@ A modern web interface for monitoring your APC UPS using **apcupsd**. It display
 - npm
 - `apcupsd` installed and configured
 
-## Installation
+## Installation Docker-Compose
+
+### Requirements for Docker-Version
+- Install docker with compose plugin
+- Set "NETSERVER on" and "NISIP 0.0.0.0" in /etc/apcupsd/apcupsd.conf
+- Set the "APC_HOST" variable in the docker-compose.yml file
+  
+```bash
+mkdir /opt/apcupsdif
+cd /opt/apcupsdif
+wget https://github.com/bmetallica/apcupsd_monitor/blob/main/docker-compose.yml
+
+docker compose up -d
+
+```
+
+## Installation manual
 
 1. Clone the repository:
 
