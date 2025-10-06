@@ -1,1 +1,12 @@
-
+version: "3.9"
+services:
+  apcupsd-web:
+    image: bmetallica/apcupsd-monitor:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - APC_HOST=!!!APCUPSD_SERVER-IP!!!
+    volumes:
+      - /var/run/apcupsd:/var/run/apcupsd:ro
+      - /var/log/apcupsd.events:/var/log/apcupsd.events:ro
+    restart: unless-stopped
