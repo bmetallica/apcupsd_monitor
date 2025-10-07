@@ -3,7 +3,7 @@
 
 [🇩🇪 Deutsch](README_de.md)
 
-A modern web interface for monitoring your APC UPS using apcupsd. It displays real-time status, battery, load, and voltage charts, and can send measurements (every minute) and event logs via MQTT.
+A modern web interface for monitoring your APC UPS using apcupsd. It displays real-time status, battery, load, and voltage charts, and can send measurements (every minute) via MQTT.
 
 ![Screenshot](https://raw.githubusercontent.com/bmetallica/apcupsd_monitor/refs/heads/main/apc.jpg)
 
