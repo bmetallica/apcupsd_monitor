@@ -21,6 +21,7 @@ Eine moderne Weboberfläche zur Überwachung deiner APC-USV mit apcupsd. Sie zei
 * Responsive Design für Desktop und Mobile
 * CSV-basierte Historie für Langzeitdiagramme (24h)
 * Systemd-Service für automatischen Start unter Debian
+* MQTT
 
 ## Systemvoraussetzungen
 
