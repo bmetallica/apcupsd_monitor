@@ -2,14 +2,48 @@ const express = require("express");
 const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const mqtt = require("mqtt");
 
 const app = express();
 const PORT = 3000;
 app.use(express.static("public"));
+app.use(express.json());
 
 const CSV_FILE = path.join(__dirname, "history.csv");
+const CONFIG_FILE = path.join(__dirname, "config.json");
 
-// CSV laden und nur letzte 24h behalten
+let config = loadConfig();
+let mqttClient = null;
+
+// --- Konfiguration laden ---
+function loadConfig() {
+  if (!fs.existsSync(CONFIG_FILE)) {
+    const def = {
+      mqttEnabled: false,
+      mqttHost: "",
+      mqttUser: "",
+      mqttPass: "",
+      mqttTopic: "usv/status"
+    };
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(def, null, 2));
+    return def;
+  }
+  return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+}
+
+// --- MQTT-Verbindung herstellen ---
+function connectMQTT() {
+  if (!config.mqttEnabled || !config.mqttHost) return;
+  const options = {};
+  if (config.mqttUser) options.username = config.mqttUser;
+  if (config.mqttPass) options.password = config.mqttPass;
+
+  mqttClient = mqtt.connect(`mqtt://${config.mqttHost}`, options);
+  mqttClient.on("connect", () => console.log("📡 MQTT verbunden:", config.mqttHost));
+  mqttClient.on("error", (err) => console.error("MQTT Fehler:", err));
+}
+
+// --- CSV laden ---
 function loadHistory() {
   let h = [];
   if (fs.existsSync(CSV_FILE)) {
@@ -31,13 +65,13 @@ function loadHistory() {
   return h.filter(e => e.t > cutoff);
 }
 
-// CSV neu schreiben
+// --- CSV speichern ---
 function saveHistory(history) {
   const lines = history.map(d => `${d.t},${d.BATTV},${d.LINEV},${d.OUTPUTV},${d.ITEMP}`);
   fs.writeFileSync(CSV_FILE, lines.join("\n"));
 }
 
-// Minütliche Status-Abfrage
+// --- Minütliche Status-Abfrage ---
 function fetchAndStoreStatus() {
   exec("apcaccess status", (err, stdout) => {
     if (err) return console.error("Fehler beim Auslesen:", err);
@@ -56,22 +90,27 @@ function fetchAndStoreStatus() {
       LINEV: parseFloat(data.LINEV) || null,
       OUTPUTV: parseFloat(data.OUTPUTV) || null,
       ITEMP: parseFloat(data.ITEMP) || null,
+      TIMELEFT: parseFloat(data.TIMELEFT) || null,
+      BCHARGE: parseFloat(data.BCHARGE) || null,
+      LOADPCT: parseFloat(data.LOADPCT) || null
     };
 
-    // CSV einlesen
+    // CSV
     let history = loadHistory();
     history.push(entry);
-
-    // alte Einträge löschen
     const cutoff = now - 24*60*60*1000;
     history = history.filter(e => e.t > cutoff);
-
-    // CSV neu schreiben
     saveHistory(history);
+
+    // --- MQTT senden ---
+    if (mqttClient && mqttClient.connected && config.mqttEnabled) {
+      mqttClient.publish(config.mqttTopic, JSON.stringify(entry), { retain: true });
+      console.log("MQTT gesendet:", config.mqttTopic, entry);
+    }
   });
 }
 
-// Status API
+// --- Status API ---
 app.get("/api/status", (req, res) => {
   exec("apcaccess status", (err, stdout) => {
     if (err) return res.status(500).json({ error: "Fehler beim Auslesen" });
@@ -82,9 +121,9 @@ app.get("/api/status", (req, res) => {
       data[key.trim()] = value.join(":").trim();
     });
 
-    // Log lesen
     try {
-      data.LOG = fs.readFileSync("/var/log/apcupsd.events", "utf8").split("\n").slice(-100).join("\n");
+      data.LOG = fs.readFileSync("/var/log/apcupsd.events", "utf8")
+        .split("\n").slice(-100).join("\n");
     } catch {
       data.LOG = "(Kein Log verfügbar)";
     }
@@ -93,14 +132,28 @@ app.get("/api/status", (req, res) => {
   });
 });
 
-// Verlauf API
+// --- Verlauf API ---
 app.get("/api/history", (req, res) => {
   const history = loadHistory();
   res.json(history);
 });
 
-app.listen(PORT, () => console.log(`🚀 USV-Webinterface läuft auf http://localhost:${PORT}`));
+// --- Config APIs ---
+app.get("/api/config", (req, res) => res.json(config));
 
-// Minütlich automatisch Status abrufen
-fetchAndStoreStatus(); // sofort beim Start
-setInterval(fetchAndStoreStatus, 60*1000);
+app.post("/api/config", (req, res) => {
+  config = req.body;
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  if (mqttClient) mqttClient.end(true);
+  mqttClient = null;
+  if (config.mqttEnabled) connectMQTT();
+  res.json({ success: true });
+});
+
+// --- Start ---
+app.listen(PORT, () => {
+  console.log(`🚀 USV-Webinterface läuft auf http://localhost:${PORT}`);
+  if (config.mqttEnabled) connectMQTT();
+  fetchAndStoreStatus();
+  setInterval(fetchAndStoreStatus, 60 * 1000);
+});
