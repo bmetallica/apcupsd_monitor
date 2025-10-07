@@ -1,0 +1,25 @@
+# Basis-Image
+FROM node:20-bullseye
+
+# Arbeitsverzeichnis
+WORKDIR /usr/src/app
+
+# Tools für apcaccess (apcupsd-Paket)
+RUN apt-get update && \
+    apt-get install -y apcupsd && \
+    rm -rf /var/lib/apt/lists/*
+
+# package.json und package-lock.json kopieren
+COPY package*.json ./
+
+# Abhängigkeiten installieren
+RUN npm install --production
+
+# Projekt kopieren
+COPY . .
+
+# Exponierter Port
+EXPOSE 3000
+
+# Startbefehl
+CMD ["node", "server.js"]
