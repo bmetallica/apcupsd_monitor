@@ -5,26 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>USV Monitor – apcupsd Webinterface</title>
 
-  <!-- Tailwind + Chart.js -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    body {
-      background-color: #f8fafc;
-    }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    canvas {
-      height: 160px !important;
-    }
+    body { background-color: #f8fafc; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    canvas { height: 160px !important; }
   </style>
 </head>
 <body class="flex flex-col h-screen">
   <!-- Header -->
-  <header class="bg-slate-800 text-white p-4 text-2xl font-semibold text-center shadow">
+  <header class="bg-slate-800 text-white p-4 text-2xl font-semibold text-center shadow relative">
     ⚡ USV Monitor (apcupsd)
+    <button id="settingsBtn" class="absolute left-4 top-3 text-white text-xl hover:text-blue-300">⚙️</button>
   </header>
 
   <main class="flex flex-grow overflow-hidden">
@@ -60,10 +54,10 @@
         </div>
       </div>
 
-      <!-- Linien-Diagramme -->
+      <!-- Liniendiagramme -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white rounded-2xl shadow p-4">
-          <h3 class="text-md font-semibold mb-2 text-slate-700">Spannungsverlauf (letzte 24h) jede Minute</h3>
+          <h3 class="text-md font-semibold mb-2 text-slate-700">Spannungsverlauf (letzte 24h)</h3>
           <div class="w-full h-60"><canvas id="voltageChart"></canvas></div>
           <div id="voltageValues" class="mt-2 text-slate-700 font-semibold text-sm">
             Eingang: 0 V | Ausgang: 0 V | Batterie: 0 V
@@ -71,7 +65,7 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow p-4">
-          <h3 class="text-md font-semibold mb-2 text-slate-700">Temperaturverlauf (letzte 24h) jede Minute</h3>
+          <h3 class="text-md font-semibold mb-2 text-slate-700">Temperaturverlauf (letzte 24h)</h3>
           <div class="w-full h-60"><canvas id="tempChart"></canvas></div>
           <div id="tempValue" class="mt-2 text-slate-700 font-semibold text-sm">0 °C</div>
         </div>
@@ -85,6 +79,42 @@
     </section>
   </main>
 
+  <!-- Konfigurationsdialog -->
+  <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-96">
+      <h2 class="text-xl font-semibold mb-4 text-slate-800">Einstellungen</h2>
+
+      <form id="settingsForm" class="space-y-3">
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="mqttEnabled" class="h-4 w-4">
+          <span>MQTT aktivieren (jede Minute)</span>
+        </label>
+
+        <div>
+          <label class="block text-sm font-medium">Server IP / Host</label>
+          <input id="mqttHost" class="w-full border rounded p-1" placeholder="z.B. 192.168.1.10">
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Benutzername</label>
+          <input id="mqttUser" class="w-full border rounded p-1" placeholder="optional">
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Passwort</label>
+          <input id="mqttPass" type="password" class="w-full border rounded p-1" placeholder="optional">
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Topic</label>
+          <input id="mqttTopic" class="w-full border rounded p-1" placeholder="usv/status">
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-3">
+          <button type="button" id="closeSettings" class="px-3 py-1 bg-gray-200 rounded">Abbrechen</button>
+          <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 <script>
 const barOptions = {
   responsive: true,
@@ -97,28 +127,14 @@ const barOptions = {
 const lineOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  scales: { x: { display: true }, y: { beginAtZero: false } },
   plugins: { legend: { position: "bottom" } }
 };
 
-// Balkendiagramme
-const runtimeChart = new Chart(document.getElementById("runtimeChart"), {
-  type: "bar",
-  data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#3b82f6" }] },
-  options: barOptions
-});
-const batteryChart = new Chart(document.getElementById("batteryChart"), {
-  type: "bar",
-  data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#22c55e" }] },
-  options: barOptions
-});
-const loadChart = new Chart(document.getElementById("loadChart"), {
-  type: "bar",
-  data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#f59e0b" }] },
-  options: barOptions
-});
+// Diagramme erstellen
+const runtimeChart = new Chart(document.getElementById("runtimeChart"), { type: "bar", data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#3b82f6" }] }, options: barOptions });
+const batteryChart = new Chart(document.getElementById("batteryChart"), { type: "bar", data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#22c55e" }] }, options: barOptions });
+const loadChart = new Chart(document.getElementById("loadChart"), { type: "bar", data: { labels: [""], datasets: [{ data: [0], backgroundColor: "#f59e0b" }] }, options: barOptions });
 
-// Liniendiagramme
 const voltageChart = new Chart(document.getElementById("voltageChart"), {
   type: "line",
   data: {
@@ -137,23 +153,20 @@ const tempChart = new Chart(document.getElementById("tempChart"), {
   options: lineOptions
 });
 
-// Daten abrufen & Diagramme aktualisieren
+// --- Datenabruf ---
 async function updateData() {
   try {
     const res = await fetch("/api/status");
     const data = await res.json();
 
-    // Tabelle füllen
     const tbody = document.querySelector("#infoTable tbody");
     tbody.innerHTML = "";
     for (const [key, value] of Object.entries(data)) {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td class="py-1 pr-2 font-medium text-slate-800">${key}</td>
-                      <td class="py-1 text-slate-600">${value}</td>`;
+      tr.innerHTML = `<td class="py-1 pr-2 font-medium text-slate-800">${key}</td><td class="py-1 text-slate-600">${value}</td>`;
       tbody.appendChild(tr);
     }
 
-    // Balkenwerte aktualisieren
     const runtime = parseFloat(data.TIMELEFT || 0);
     const battery = parseFloat(data.BCHARGE || 0);
     const load = parseFloat(data.LOADPCT || 0);
@@ -166,19 +179,14 @@ async function updateData() {
     batteryChart.update();
     loadChart.update();
 
-    // Werte unterhalb der Balken
     document.getElementById("runtimeValue").textContent = `${runtime} Minuten`;
     document.getElementById("batteryValue").textContent = `${battery} %`;
     document.getElementById("loadValue").textContent = `${load} %`;
 
-    // Verlaufsdaten vom Server holen
     const histRes = await fetch("/api/history");
     const history = await histRes.json();
+    const timestamps = history.map(h => new Date(h.t).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }));
 
-    const timestamps = history.map(h => {
-      const d = new Date(h.t);
-      return d.getHours().toString().padStart(2,'0') + ":" + d.getMinutes().toString().padStart(2,'0');
-    });
     voltageChart.data.labels = timestamps;
     tempChart.data.labels = timestamps;
 
@@ -190,26 +198,50 @@ async function updateData() {
     voltageChart.update();
     tempChart.update();
 
-    // Werte unterhalb der Liniendiagramme
-    const lastVoltage = history[history.length - 1] || { LINEV: 0, OUTPUTV: 0, BATTV: 0 };
-    document.getElementById("voltageValues").textContent =
-      `Eingang: ${lastVoltage.LINEV} V | Ausgang: ${lastVoltage.OUTPUTV} V | Batterie: ${lastVoltage.BATTV} V`;
+    const lastVoltage = history.at(-1) || { LINEV: 0, OUTPUTV: 0, BATTV: 0 };
+    document.getElementById("voltageValues").textContent = `Eingang: ${lastVoltage.LINEV} V | Ausgang: ${lastVoltage.OUTPUTV} V | Batterie: ${lastVoltage.BATTV} V`;
 
-    const lastTemp = history[history.length - 1] || { ITEMP: 0 };
+    const lastTemp = history.at(-1) || { ITEMP: 0 };
     document.getElementById("tempValue").textContent = `${lastTemp.ITEMP} °C`;
 
-    // Log
-    const log = document.getElementById("logOutput");
-    log.textContent = (data.LOG || "").split("\n").slice(-50).join("\n");
-
+    document.getElementById("logOutput").textContent = (data.LOG || "").split("\n").slice(-50).join("\n");
   } catch (err) {
     console.error("Fehler beim Abrufen der Daten:", err);
   }
 }
 
-// Update alle 5 Sekunden
 updateData();
 setInterval(updateData, 5000);
+
+// --- Einstellungsdialog ---
+const modal = document.getElementById("settingsModal");
+document.getElementById("settingsBtn").onclick = async () => {
+  modal.classList.remove("hidden");
+  const cfg = await (await fetch("/api/config")).json();
+  document.getElementById("mqttEnabled").checked = cfg.mqttEnabled;
+  document.getElementById("mqttHost").value = cfg.mqttHost;
+  document.getElementById("mqttUser").value = cfg.mqttUser;
+  document.getElementById("mqttPass").value = cfg.mqttPass;
+  document.getElementById("mqttTopic").value = cfg.mqttTopic;
+};
+document.getElementById("closeSettings").onclick = () => modal.classList.add("hidden");
+document.getElementById("settingsForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const payload = {
+    mqttEnabled: document.getElementById("mqttEnabled").checked,
+    mqttHost: document.getElementById("mqttHost").value.trim(),
+    mqttUser: document.getElementById("mqttUser").value.trim(),
+    mqttPass: document.getElementById("mqttPass").value.trim(),
+    mqttTopic: document.getElementById("mqttTopic").value.trim(),
+  };
+  await fetch("/api/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  modal.classList.add("hidden");
+  alert("Einstellungen gespeichert.");
+};
 </script>
 </body>
 </html>
