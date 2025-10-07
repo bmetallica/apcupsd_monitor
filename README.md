@@ -21,6 +21,7 @@ A modern web interface for monitoring your APC UPS using apcupsd. It displays re
 - Responsive design for desktop and mobile
 - CSV-based history storage for long-term charting (24h)
 - Systemd service for automatic startup on Debian
+- Sending measurements via MQTT
 
 ## System Requirements
 
