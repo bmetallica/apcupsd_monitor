@@ -87,7 +87,7 @@
       <form id="settingsForm" class="space-y-3">
         <label class="flex items-center space-x-2">
           <input type="checkbox" id="mqttEnabled" class="h-4 w-4">
-          <span>MQTT aktivieren (jede Minute)</span>
+          <span>MQTT aktivieren</span>
         </label>
 
         <div>
@@ -105,6 +105,11 @@
         <div>
           <label class="block text-sm font-medium">Topic</label>
           <input id="mqttTopic" class="w-full border rounded p-1" placeholder="usv/status">
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Sendeintervall (Sekunden)</label>
+          <input id="mqttInterval" type="number" min="5" step="5" class="w-full border rounded p-1" placeholder="60">
+          <p class="text-xs text-gray-500 mt-1">Wechsel zwischen Netz und Batterie werden unabhängig davon sofort gesendet.</p>
         </div>
 
         <div class="flex justify-end space-x-3 pt-3">
@@ -223,6 +228,7 @@ document.getElementById("settingsBtn").onclick = async () => {
   document.getElementById("mqttUser").value = cfg.mqttUser;
   document.getElementById("mqttPass").value = cfg.mqttPass;
   document.getElementById("mqttTopic").value = cfg.mqttTopic;
+  document.getElementById("mqttInterval").value = cfg.mqttInterval ?? 60;
 };
 document.getElementById("closeSettings").onclick = () => modal.classList.add("hidden");
 document.getElementById("settingsForm").onsubmit = async (e) => {
@@ -233,6 +239,7 @@ document.getElementById("settingsForm").onsubmit = async (e) => {
     mqttUser: document.getElementById("mqttUser").value.trim(),
     mqttPass: document.getElementById("mqttPass").value.trim(),
     mqttTopic: document.getElementById("mqttTopic").value.trim(),
+    mqttInterval: Number(document.getElementById("mqttInterval").value),
   };
   await fetch("/api/config", {
     method: "POST",

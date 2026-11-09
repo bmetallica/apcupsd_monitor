@@ -2,7 +2,7 @@
 
 [🇬🇧 English](README.md)
 
-Eine moderne Weboberfläche zur Überwachung deiner APC-USV mit apcupsd. Sie zeigt den aktuellen Status sowie Diagramme für Batterie, Last und Spannung in Echtzeit an und kann Messwerte (jede Minute) über MQTT senden.
+Eine moderne Weboberfläche zur Überwachung deiner APC-USV mit apcupsd. Sie zeigt den aktuellen Status sowie Diagramme für Batterie, Last und Spannung in Echtzeit an und sendet alle Werte der USV über MQTT, Netzausfälle sofort.
 
 ![Screenshot](https://raw.githubusercontent.com/bmetallica/apcupsd_monitor/refs/heads/main/apc.jpg)
 
@@ -26,7 +26,7 @@ Eine moderne Weboberfläche zur Überwachung deiner APC-USV mit apcupsd. Sie zei
 ## Systemvoraussetzungen
 
 * Debian / Ubuntu
-* Node.js (v18+ empfohlen)
+* Node.js (aktuelle LTS-Version empfohlen)
 * npm
 * `apcupsd` installiert und konfiguriert
 
@@ -82,6 +82,23 @@ sudo systemctl start apcupsd-web.service
 ```
 http://<server-ip>:3000
 ```
+
+## MQTT
+
+Aktivierung und Einstellungen erfolgen über das Zahnrad in der Weboberfläche. Das **Sendeintervall** ist dort in Sekunden einstellbar (Standard 60, Minimum 5). Die USV wird unabhängig davon alle 5 Sekunden abgefragt: Statusänderungen werden sofort gesendet.
+
+Mit dem Standard-Topic `usv/status`:
+
+| Topic | Inhalt | Retained |
+| --- | --- | --- |
+| `usv/status/on_battery` | `true` = USV läuft auf Batterie, `false` = Netzstrom vorhanden | ja |
+| `usv/status/power_state` | `mains`, `battery` oder `unknown` (z.B. Verbindung zur USV verloren) | ja |
+| `usv/status/event` | Einmalig beim Wechsel: JSON mit `event` = `power_lost` oder `power_restored` | nein |
+| `usv/status/available` | `online` oder `offline` (Monitor oder apcupsd nicht erreichbar) | ja |
+| `usv/status/<WERT>` | Jeder Wert von `apcaccess`, z.B. `STATUS`, `BCHARGE`, `TIMELEFT`, `LINEV`, `LOADPCT` | ja |
+| `usv/status` | Alle Werte zusammen als JSON | ja |
+
+Werte mit Einheit werden als reine Zahl gesendet (`230.0 Volts` wird zu `230`).
 
 ## Nutzung
 
