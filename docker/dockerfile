@@ -1,19 +1,20 @@
 # Basis-Image
-FROM node:20-bullseye
+FROM node:24-alpine
 
 # Arbeitsverzeichnis
 WORKDIR /usr/src/app
 
-# Tools für apcaccess (apcupsd-Paket)
-RUN apt-get update && \
-    apt-get install -y apcupsd && \
-    rm -rf /var/lib/apt/lists/*
+# Sicherheitsupdates und Tools für apcaccess (apcupsd-Paket)
+RUN apk upgrade --no-cache && \
+    apk add --no-cache apcupsd
 
 # package.json und package-lock.json kopieren
 COPY package*.json ./
 
-# Abhängigkeiten installieren
-RUN npm install --production
+# Abhängigkeiten installieren, danach npm/yarn entfernen (zur Laufzeit nicht nötig)
+RUN npm install --omit=dev && \
+    rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
+           /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
 
 # Projekt kopieren
 COPY . .

@@ -3,7 +3,7 @@
 
 [🇩🇪 Deutsch](README_de.md)
 
-A modern web interface for monitoring your APC UPS using apcupsd. It displays real-time status, battery, load, and voltage charts, and can send measurements (every minute) via MQTT.
+A modern web interface for monitoring your APC UPS using apcupsd. It displays real-time status, battery, load, and voltage charts, and publishes all UPS values via MQTT, with power failures sent immediately.
 
 ![Screenshot](https://raw.githubusercontent.com/bmetallica/apcupsd_monitor/refs/heads/main/apc.jpg)
 
@@ -26,7 +26,7 @@ A modern web interface for monitoring your APC UPS using apcupsd. It displays re
 ## System Requirements
 
 - Debian / Ubuntu
-- Node.js (v18+ recommended)
+- Node.js (current LTS version recommended)
 - npm
 - `apcupsd` installed and configured
 
@@ -82,6 +82,23 @@ sudo systemctl start apcupsd-web.service
 ```
 http://<server-ip>:3000
 ```
+
+## MQTT
+
+Enable and configure MQTT via the gear icon in the web interface. The **send interval** is set there in seconds (default 60, minimum 5). Independently of it, the UPS is polled every 5 seconds and status changes are sent immediately.
+
+With the default topic `usv/status`:
+
+| Topic | Content | Retained |
+| --- | --- | --- |
+| `usv/status/on_battery` | `true` = UPS is running on battery, `false` = mains power present | yes |
+| `usv/status/power_state` | `mains`, `battery` or `unknown` (e.g. connection to the UPS lost) | yes |
+| `usv/status/event` | Once per transition: JSON with `event` = `power_lost` or `power_restored` | no |
+| `usv/status/available` | `online` or `offline` (monitor or apcupsd unreachable) | yes |
+| `usv/status/<VALUE>` | Every value from `apcaccess`, e.g. `STATUS`, `BCHARGE`, `TIMELEFT`, `LINEV`, `LOADPCT` | yes |
+| `usv/status` | All values combined as JSON | yes |
+
+Values with a unit are sent as plain numbers (`230.0 Volts` becomes `230`).
 
 ## Usage
 
